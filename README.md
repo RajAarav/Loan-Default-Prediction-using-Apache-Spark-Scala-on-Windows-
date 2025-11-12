@@ -1,9 +1,11 @@
 Loan Default Prediction Using Apache Spark
 
 This project predicts the probability of loan default using financial and demographic data. It demonstrates how big data tools like Apache Spark can be used for scalable data preprocessing, model training, and evaluation.
+
 📊 Project Overview
 
 The goal is to analyze loan applicant data and predict whether a person is likely to default on their loan. Logistic Regression was used as the classification model after encoding categorical variables and scaling numeric features.
+
 ⚙️ Technologies Used
 
     Apache Spark (Scala on Spark Shell)
