@@ -1,0 +1,140 @@
+🔧 Project Overview
+
+You’ll use Apache Spark (Scala) in spark-shell to:
+
+    Load financial loan data
+
+    Preprocess it (encode + scale)
+
+    Train a Logistic Regression model (Spark MLlib)
+
+    Evaluate accuracy using a confusion matrix
+
+    Save predictions to Spark SQL
+
+    Visualize results (e.g., default probability) in a dashboard tool like Tableau or Power BI
+
+
+
+loan_id, gender, income, loan_amount, term, credit_score, default
+
+💡 3. Load Data into Spark
+
+Launch spark-shell and run:
+
+
+// Load CSV
+val loanDF = spark.read.option("header", "true").option("inferSchema", "true").csv("C:/spark-projects/loan_default/data.csv")
+
+loanDF.show(5)
+loanDF.printSchema()
+
+🧹 4. Data Preprocessing
+
+Encode categorical columns (like gender, term):
+
+
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler, StandardScaler}
+
+// Encode categorical columns
+val genderIndexer = new StringIndexer().setInputCol("gender").setOutputCol("gender_indexed")
+
+val termIndexer = new StringIndexer().setInputCol("term").setOutputCol("term_indexed")
+
+val encodedDF = genderIndexer.fit(loanDF).transform(loanDF)
+val encodedDF2 = termIndexer.fit(encodedDF).transform(encodedDF)
+
+Assemble features:
+
+
+
+val assembler = new VectorAssembler().setInputCols(Array("gender_indexed", "income", "loan_amount", "term_indexed", "credit_score")).setOutputCol("features")
+
+val assembledDF = assembler.transform(encodedDF2)
+
+Scale features:
+
+
+
+val scaler = new StandardScaler().setInputCol("features").setOutputCol("scaledFeatures").fit(assembledDF)
+
+val scaledDF = scaler.transform(assembledDF)
+
+
+🤖 5. Train Logistic Regression Model
+
+
+import org.apache.spark.ml.classification.LogisticRegression
+
+val lr = new LogisticRegression().setFeaturesCol("scaledFeatures").setLabelCol("default").setMaxIter(20)
+
+val lrModel = lr.fit(scaledDF)
+
+
+📊 6. Evaluate Model (Confusion Matrix)
+
+
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+
+val predictions = lrModel.transform(scaledDF)
+predictions.select("default", "prediction", "probability").show(10)
+
+
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
+import org.apache.spark.sql.functions.col
+
+// Ensure both are Doubles
+val df2 = predictions.withColumn("prediction", col("prediction").cast("Double")).withColumn("default", col("default").cast("Double"))
+
+// Convert to RDD[(Double, Double)]
+val predictionAndLabels = df2.select("prediction", "default").rdd.map(row => (row.getDouble(0), row.getDouble(1)))
+
+// Create metrics
+val metrics = new MulticlassMetrics(predictionAndLabels)
+
+// Print metrics
+println("Confusion Matrix:\n" + metrics.confusionMatrix)
+println("Accuracy: " + metrics.accuracy)
+
+*******************************************************************************************
+            ************ sometimes gives error ************
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
+
+val predictionAndLabels = predictions
+  .select("prediction", "default")
+  .rdd
+  .map(x => (x.getDouble(0), x.getDouble(1)))
+
+val metrics = new MulticlassMetrics(predictionAndLabels)
+println("Confusion Matrix:\n" + metrics.confusionMatrix)
+println("Accuracy: " + metrics.accuracy)
+
+***********************************************************************************************
+🧮 7. Save Predicted Results to Spark SQL
+
+
+predictions.createOrReplaceTempView("loan_predictions")
+spark.sql("SELECT loan_id, prediction, probability FROM loan_predictions").show()
+
+// Optional: Save to file
+predictions.write.mode("overwrite").parquet("C:/Users/Arctic/Downloads/spark project/predictions")
+
+
+📈 8. Visualization (Dashboard)
+
+    Export results from Spark SQL as CSV:
+
+
+********gives error*******
+predictions.select("loan_id", "default", "prediction", "probability").write.option("header", "true").mode("overwrite").csv("C:/Users/Arctic/Downloads/spark project/output")
+
+******************************************************
+import org.apache.spark.sql.functions._
+
+val predictionsFixed = predictions.withColumn("probability_str", col("probability").cast("string"))
+
+predictionsFixed.select("loan_id", "default", "prediction", "probability_str").write.option("header", "true").mode("overwrite").csv("C:/Users/Arctic/Downloads/spark project/output")
+
+******************************************************
+
+  

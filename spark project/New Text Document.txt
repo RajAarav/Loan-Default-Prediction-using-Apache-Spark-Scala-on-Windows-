@@ -1,0 +1,21 @@
+
+val loanDF = spark.read.option("header", "true").option("inferSchema", "true").csv("C:/Users/Arctic/Downloads/spark project/loan_data_large.csv")
+
+
+val genderIndexer = new StringIndexer().setInputCol("gender").setOutputCol("gender_indexed")
+
+
+val termIndexer = new StringIndexer().setInputCol("term").setOutputCol("term_indexed")
+
+
+
+val assembler = new VectorAssembler().setInputCols(Array("gender_indexed", "income", "loan_amount", "term_indexed", "credit_score")).setOutputCol("features")
+
+
+val scaler = new StandardScaler().setInputCol("features").setOutputCol("scaledFeatures").fit(assembledDF)
+
+
+val lr = new LogisticRegression().setFeaturesCol("scaledFeatures").setLabelCol("default").setMaxIter(20)
+
+
+val predictionAndLabels = predictions.select("prediction", "default").rdd.map(x => (x.getDouble(0), x.getDouble(1)))
